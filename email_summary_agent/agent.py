@@ -1,6 +1,7 @@
 import os
 import base64
 import json
+import re
 from typing import Dict, List, Any
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -8,7 +9,6 @@ from google.adk.agents import Agent
 import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import re
 
 
 def get_gmail_service():
@@ -121,6 +121,66 @@ def extract_email_body(payload):
     return body.strip()
 
 
+def escape_markdown(text: str) -> str:
+    """Escape special characters for Telegram Markdown."""
+    # Characters that need escaping in Telegram Markdown
+    escape_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    
+    for char in escape_chars:
+        text = text.replace(char, f'\\{char}')
+    
+    return text
+
+
+def create_telegram_safe_summary(emails_data) -> str:
+    """Create a Telegram-safe email summary without problematic formatting."""
+    try:
+        # Parse the emails data if it's a string
+        if isinstance(emails_data, str):
+            try:
+                emails_info = json.loads(emails_data)
+            except:
+                emails_info = {"emails": [], "email_count": 0}
+        else:
+            emails_info = emails_data
+        
+        emails = emails_info.get("emails", [])
+        email_count = emails_info.get("email_count", 0)
+        
+        if email_count == 0:
+            return "📧 No unread emails found!"
+        
+        # Create plain text summary for Telegram
+        summary = f"📧 EMAIL SUMMARY ({email_count} unread emails)\n\n"
+        
+        for i, email in enumerate(emails, 1):
+            # Clean text for Telegram
+            subject = email['subject'].replace('*', '').replace('_', '').replace('[', '').replace(']', '')
+            sender = email['sender'].replace('*', '').replace('_', '').replace('<', '').replace('>', '')
+            
+            summary += f"{i}. {subject}\n"
+            summary += f"From: {sender}\n"
+            summary += f"Date: {email['date']}\n"
+            
+            # Create a brief summary of the email body
+            body = email['body']
+            if len(body) > 100:
+                body_summary = body[:100] + "..."
+            else:
+                body_summary = body
+            
+            # Clean body text
+            body_summary = body_summary.replace('*', '').replace('_', '').replace('[', '').replace(']', '')
+            
+            summary += f"Preview: {body_summary}\n"
+            summary += "-" * 40 + "\n\n"
+        
+        return summary
+        
+    except Exception as e:
+        return f"Error creating summary: {str(e)}"
+
+
 def create_email_summary(emails_data: str) -> Dict[str, Any]:
     """Create a summary of unread emails."""
     try:
@@ -170,7 +230,7 @@ def create_email_summary(emails_data: str) -> Dict[str, Any]:
 
 
 def send_to_telegram(message: str) -> Dict[str, Any]:
-    """Send email summary to Telegram."""
+    """Send email summary to Telegram with improved error handling."""
     try:
         bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         chat_id = os.getenv('TELEGRAM_CHAT_ID')
@@ -183,10 +243,10 @@ def send_to_telegram(message: str) -> Dict[str, Any]:
         
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         
+        # First, try sending with no parse mode (plain text)
         data = {
             "chat_id": chat_id,
-            "text": message,
-            "parse_mode": "Markdown"
+            "text": message
         }
         
         response = requests.post(url, data=data)
@@ -197,10 +257,26 @@ def send_to_telegram(message: str) -> Dict[str, Any]:
                 "message": "Email summary sent to Telegram successfully!"
             }
         else:
-            return {
-                "status": "error",
-                "error_message": f"Failed to send to Telegram: {response.text}"
+            # If plain text fails, try with just the basic info
+            simple_message = f"📧 You have unread emails in your inbox!\n\nCheck your email client for details."
+            
+            simple_data = {
+                "chat_id": chat_id,
+                "text": simple_message
             }
+            
+            fallback_response = requests.post(url, data=simple_data)
+            
+            if fallback_response.status_code == 200:
+                return {
+                    "status": "success",
+                    "message": "Simplified email notification sent to Telegram successfully!"
+                }
+            else:
+                return {
+                    "status": "error",
+                    "error_message": f"Failed to send to Telegram: {response.text}"
+                }
             
     except Exception as e:
         return {
@@ -218,14 +294,11 @@ def check_and_send_email_summary() -> Dict[str, Any]:
         if emails_result["status"] == "error":
             return emails_result
         
-        # Create summary
-        summary_result = create_email_summary(emails_result)
-        
-        if summary_result["status"] == "error":
-            return summary_result
+        # Create Telegram-safe summary
+        telegram_summary = create_telegram_safe_summary(emails_result)
         
         # Send to Telegram
-        telegram_result = send_to_telegram(summary_result["summary"])
+        telegram_result = send_to_telegram(telegram_summary)
         
         return {
             "status": "success",
