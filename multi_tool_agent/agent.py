@@ -11,12 +11,12 @@ def get_weather(city: str) -> dict:
     Returns:
         dict: status and result or error msg.
     """
-    if city.lower() == "new york":
+    if city.lower().strip() == "new york":
         return {
             "status": "success",
             "report": (
                 "The weather in New York is sunny with a temperature of 25 degrees"
-                " Celsius (41 degrees Fahrenheit)."
+                " Celsius (77 degrees Fahrenheit)."
             ),
         }
     else:
@@ -36,7 +36,7 @@ def get_current_time(city: str) -> dict:
         dict: status and result or error msg.
     """
 
-    if city.lower() == "new york":
+    if city.lower().strip() == "new york":
         tz_identifier = "America/New_York"
     else:
         return {
