@@ -22,6 +22,13 @@ This project contains multiple Google ADK agents that can be deployed together o
 - Sends summaries to Telegram
 - Automated email monitoring
 
+### 3. YouTube Short Maker Agent (`youtube_short_maker`)
+- Processes background videos for YouTube Shorts format (9:16 aspect ratio)
+- Generates AI voiceovers using OpenAI Text-to-Speech
+- Combines video + audio using FFmpeg
+- Automatically uploads to YouTube via YouTube Data API
+- Complete pipeline from video file + transcript to published YouTube Short
+
 ## Setup & Configuration
 
 ### Prerequisites
@@ -37,7 +44,7 @@ Copy `multi_tool_agent/.env.template` to `multi_tool_agent/.env` and fill in:
 ```env
 # Google AI Configuration
 GOOGLE_GENAI_USE_VERTEXAI=FALSE
-GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_API_KEY=your_google_api_key
 ```
 
 #### For Email Summary Agent
@@ -45,16 +52,35 @@ Create `email_summary_agent/.env` with:
 
 ```env
 # Google Gmail API Credentials
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-GOOGLE_REFRESH_TOKEN=your_google_refresh_token_here
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REFRESH_TOKEN=your_google_refresh_token
 
 # Telegram Bot Configuration
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-TELEGRAM_CHAT_ID=your_telegram_chat_id_here
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
 
 # Gmail Configuration
 GMAIL_ADDRESS=your_email@gmail.com
+```
+
+#### For YouTube Short Maker Agent
+Create `youtube_short_maker/.env` with:
+
+```env
+# OpenAI API (for Text-to-Speech)
+OPENAI_API_KEY=your_openai_api_key
+
+# YouTube Data API v3 (for uploading videos)
+YOUTUBE_CLIENT_ID=your_youtube_client_id
+YOUTUBE_CLIENT_SECRET=your_youtube_client_secret
+YOUTUBE_REFRESH_TOKEN=your_youtube_refresh_token
+
+# Google AI API (for agent model)
+GOOGLE_API_KEY=your_google_ai_api_key
+
+# Database (for persistence)
+DATABASE_URL=your_postgresql_database_url_here
 ```
 
 ### Getting Google Gmail API Credentials
@@ -101,6 +127,9 @@ adk web multi_tool_agent
 
 # Run email agent only  
 adk web email_summary_agent
+
+# Run YouTube short maker agent only  
+adk web youtube_short_maker
 ```
 
 ### Run All Agents
@@ -124,6 +153,10 @@ adk api_server --host 0.0.0.0 --port 8000
    GOOGLE_REFRESH_TOKEN=your_google_refresh_token
    TELEGRAM_BOT_TOKEN=your_telegram_bot_token
    TELEGRAM_CHAT_ID=your_telegram_chat_id
+   OPENAI_API_KEY=your_openai_api_key
+   YOUTUBE_CLIENT_ID=your_youtube_client_id
+   YOUTUBE_CLIENT_SECRET=your_youtube_client_secret
+   YOUTUBE_REFRESH_TOKEN=your_youtube_refresh_token
    ```
 
 2. **Build Command**: `pip install -r requirements.txt`
@@ -140,6 +173,9 @@ POST https://your-app.onrender.com/apps/multi_tool_agent/users/u_123/sessions/s_
 
 # Email Agent  
 POST https://your-app.onrender.com/apps/email_summary_agent/users/u_123/sessions/s_456
+
+# YouTube Short Maker Agent
+POST https://your-app.onrender.com/apps/youtube_short_maker/users/u_123/sessions/s_789
 ```
 
 ## Usage Examples
@@ -176,6 +212,22 @@ curl -X POST https://your-app.onrender.com/run_sse \
   }'
 ```
 
+### YouTube Short Maker Agent
+```bash
+curl -X POST https://your-app.onrender.com/run_sse \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appName": "youtube_short_maker",
+    "userId": "u_123",
+    "sessionId": "s_789",
+    "newMessage": {
+      "role": "user", 
+      "parts": [{"text": "Create a YouTube Short with video /path/to/video.mp4 and transcript: Welcome to my AI-powered channel!"}]
+    },
+    "streaming": false
+  }'
+```
+
 ## Features
 
 - ✅ **Multi-Agent Architecture**: Multiple specialized agents in one deployment
@@ -184,6 +236,9 @@ curl -X POST https://your-app.onrender.com/run_sse \
 - ✅ **Email Integration**: Gmail API for reading emails
 - ✅ **Telegram Notifications**: Automated messaging
 - ✅ **Production Ready**: Error handling, logging, monitoring
+- ✅ **YouTube Shorts Automation**: Complete video creation and upload pipeline
+- ✅ **AI-Generated Voiceovers**: OpenAI Text-to-Speech integration
+- ✅ **Video Processing**: FFmpeg-powered video format conversion
 
 ## Dependencies
 
@@ -192,6 +247,9 @@ curl -X POST https://your-app.onrender.com/run_sse \
 - `google-auth>=2.0.0` - Google authentication
 - `google-api-python-client>=2.0.0` - Gmail API client
 - `requests>=2.25.0` - HTTP requests for Telegram
+- `openai>=1.0.0` - OpenAI API for Text-to-Speech
+- `google-auth-oauthlib>=0.8.0` - YouTube API authentication
+- `google-auth-httplib2>=0.1.0` - HTTP library for Google APIs
 
 ## License
 

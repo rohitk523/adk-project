@@ -1,0 +1,20 @@
+# YouTube Short Maker Agent Configuration
+
+# OpenAI API (for Text-to-Speech)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# YouTube Data API v3 (for uploading videos)
+YOUTUBE_CLIENT_ID=your_youtube_oauth_client_id_here
+YOUTUBE_CLIENT_SECRET=your_youtube_oauth_client_secret_here
+YOUTUBE_REFRESH_TOKEN=your_youtube_refresh_token_here
+
+# Google AI API (for agent model)
+GOOGLE_API_KEY=your_google_ai_api_key_here
+
+# Database (for persistence)
+DATABASE_URL=your_postgresql_database_url_here
+
+# Optional: Default video settings
+DEFAULT_VIDEO_DURATION=60
+DEFAULT_TTS_VOICE=alloy
+DEFAULT_VIDEO_QUALITY=2M 
